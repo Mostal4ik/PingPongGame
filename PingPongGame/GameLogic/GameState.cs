@@ -1,12 +1,10 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-
-namespace PingPongGame.GameLogic
+﻿namespace PingPongGame.GameLogic
 {
-    internal class GameState
+    public enum GameState
     {
+        WaitingToStart, // ждём начала розыгрыша (мяч стоит)
+        Playing,        // идёт игра
+        Paused,         // пауза
+        GameOver        // игра закончена (кто-то набрал MaxScore)
     }
 }
