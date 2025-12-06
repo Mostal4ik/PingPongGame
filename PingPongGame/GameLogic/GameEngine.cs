@@ -107,8 +107,12 @@ namespace PingPongGame.GameLogic
             if (State != GameState.Playing)
                 return;
 
-            // Обновляем ракетки (направления задаёт UI)
+            // Обновляем левую ракетку: ею управляет игрок (значение DirectionY задаёт UI)
             LeftPaddle.Update(dt, Settings.FieldHeight);
+
+            // Обновляем правую ракетку: ей управляет ИИ
+            UpdateRightPaddleAI(dt);
+
             RightPaddle.Update(dt, Settings.FieldHeight);
 
             // Двигаем мяч
@@ -117,6 +121,49 @@ namespace PingPongGame.GameLogic
             HandleWallCollisions();
             HandlePaddleCollisions();
             HandleGoal();
+        }
+
+        private void UpdateRightPaddleAI(float dt)
+        {
+            // Если игра не идёт — ракетка стоит
+            if (State != GameState.Playing)
+            {
+                RightPaddle.DirectionY = 0;
+                return;
+            }
+
+            float paddleCenter = RightPaddle.Y + RightPaddle.Height / 2f;
+            float ballY = Ball.Y;
+
+            float deadZone;
+            float speedFactor;
+
+            switch (Settings.AIDifficulty)
+            {
+                case AIDifficulty.Easy:
+                    deadZone = 30f;   // ИИ ленивый, реагирует только когда мяч сильно ушёл
+                    speedFactor = 0.6f;
+                    break;
+                case AIDifficulty.Hard:
+                    deadZone = 5f;    // реагирует на малейшее смещение
+                    speedFactor = 1.3f;
+                    break;
+                default: // Normal
+                    deadZone = 15f;
+                    speedFactor = 1.0f;
+                    break;
+            }
+
+            float dy = ballY - paddleCenter;
+
+            if (Math.Abs(dy) <= deadZone)
+            {
+                RightPaddle.DirectionY = 0;
+                return;
+            }
+
+            // Направление с учётом скорости сложности
+            RightPaddle.DirectionY = dy < 0 ? -speedFactor : speedFactor;
         }
 
         private void HandleWallCollisions()
@@ -138,13 +185,11 @@ namespace PingPongGame.GameLogic
             RectangleF leftRect = LeftPaddle.GetBounds();
             RectangleF rightRect = RightPaddle.GetBounds();
 
-            // Столкновение с левой ракеткой
             if (ballRect.IntersectsWith(leftRect) && Ball.VelocityX < 0)
             {
                 ReflectFromPaddle(LeftPaddle);
             }
 
-            // Столкновение с правой ракеткой
             if (ballRect.IntersectsWith(rightRect) && Ball.VelocityX > 0)
             {
                 ReflectFromPaddle(RightPaddle);
@@ -153,10 +198,8 @@ namespace PingPongGame.GameLogic
 
         private void ReflectFromPaddle(Paddle paddle)
         {
-            // Отразить по X
             float newVx = -Ball.VelocityX;
 
-            // Добавим небольшой эффект «куда попали по ракетке»
             float paddleCenterY = paddle.Y + paddle.Height / 2f;
             float offset = (Ball.Y - paddleCenterY) / (paddle.Height / 2f); // -1..1
 
@@ -186,16 +229,13 @@ namespace PingPongGame.GameLogic
             if (ScoreLeft >= Settings.MaxScore || ScoreRight >= Settings.MaxScore)
             {
                 State = GameState.GameOver;
-                // Мяч останавливаем в центре
                 float centerX = Settings.FieldWidth / 2f;
                 float centerY = Settings.FieldHeight / 2f;
                 Ball.Reset(centerX, centerY, 0, 0);
             }
             else
             {
-                // Останавливаем игру и ждём вызов StartRound()
                 State = GameState.WaitingToStart;
-
                 float centerX = Settings.FieldWidth / 2f;
                 float centerY = Settings.FieldHeight / 2f;
                 Ball.Reset(centerX, centerY, 0, 0);

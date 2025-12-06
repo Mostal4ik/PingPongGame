@@ -52,6 +52,12 @@
     <Compile Include="Form1.Designer.cs">
       <DependentUpon>Form1.cs</DependentUpon>
     </Compile>
+    <Compile Include="GameLogic\AIDifficulty.cs" />
+    <Compile Include="GameLogic\Ball.cs" />
+    <Compile Include="GameLogic\GameEngine.cs" />
+    <Compile Include="GameLogic\GameSettings.cs" />
+    <Compile Include="GameLogic\GameState.cs" />
+    <Compile Include="GameLogic\Paddle.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
