@@ -58,6 +58,22 @@
     <Compile Include="GameLogic\GameSettings.cs" />
     <Compile Include="GameLogic\GameState.cs" />
     <Compile Include="GameLogic\Paddle.cs" />
+    <Compile Include="GameUI\BufferedForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="GameUI\BufferedPanel.cs">
+      <SubType>Component</SubType>
+    </Compile>
+    <Compile Include="GameUI\GameRenderer.cs" />
+    <Compile Include="GameUI\SettingsManager.cs" />
+    <Compile Include="GameUI\ThemeManager.cs" />
+    <Compile Include="GameUI\UIManager.cs" />
+    <Compile Include="MenuForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="MenuForm.Designer.cs">
+      <DependentUpon>MenuForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <EmbeddedResource Include="Properties\Resources.resx">
@@ -82,5 +98,6 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
