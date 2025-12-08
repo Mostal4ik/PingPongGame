@@ -323,27 +323,25 @@ namespace PingPongGame
         {
             CreateEngine();
             _engine.StartRound();
-            _gameStartTime = DateTime.Now;
-            _scoreSaved = false;
-
             UIManager.StartGameTimer();
             _stopwatch.Start();
             _timer.Start();
             _uiTimer.Start();
             UpdateTopPanel();
 
-            // Сохраняем начальные значения для отслеживания звуков
-            _lastScoreLeft = _engine.ScoreLeft;
-            _lastScoreRight = _engine.ScoreRight;
-            _lastBallX = _engine.Ball.X;
-
-            // Загрузка настроек звука и запуск музыки (из ui-ветки)
+            // Загружаем настройки звука
             SoundManager.LoadSettings();
+
+            // Запускаем музыку ТОЛЬКО если включена
             if (SoundManager.MusicEnabled)
             {
                 SoundManager.PlayMusic();
             }
         }
+
+
+
+
 
         private void CreateEngine()
         {

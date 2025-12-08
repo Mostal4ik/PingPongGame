@@ -21,7 +21,8 @@ namespace PingPongGame
         {
             try
             {
-                string soundsPath = "sounds";
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string soundsPath = Path.Combine(baseDir, "sounds");
 
                 if (!Directory.Exists(soundsPath))
                 {
@@ -29,16 +30,21 @@ namespace PingPongGame
                     return;
                 }
 
-                // Загружаем только музыку
                 string musicPath = Path.Combine(soundsPath, "music.wav");
+
                 if (File.Exists(musicPath))
                 {
                     _musicPlayer = new SoundPlayer(musicPath);
                     _musicPlayer.Load();
                 }
             }
-            catch { }
+            catch
+            {
+            }
         }
+
+
+
 
         public static void PlayGoalSound()
         {
@@ -60,8 +66,12 @@ namespace PingPongGame
             {
                 _musicPlayer.PlayLooping();
             }
-            catch { }
+            catch
+            {
+            }
         }
+
+
 
         public static void StopMusic()
         {
