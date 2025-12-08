@@ -5,8 +5,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using PingPongGame.GameLogic;
 using PingPongGame.GameUI;
-using PingPongGame.Data; 
-
+using PingPongGame.Data;
 
 namespace PingPongGame
 {
@@ -41,6 +40,25 @@ namespace PingPongGame
         private DateTime _gameStartTime;
         private bool _scoreSaved;
 
+        // ДЛЯ ДИАЛОГОВ (UI-ветка)
+        private DialogState _dialogState = DialogState.None;
+        private DialogAction _pendingAction = DialogAction.None;
+        private string _dialogTitle = "";
+        private string _dialogMessage = "";
+
+        private enum DialogState
+        {
+            None,
+            Showing
+        }
+
+        private enum DialogAction
+        {
+            None,
+            Restart,
+            Menu,
+            Help
+        }
 
         public Form1(string playerName, AIDifficulty difficulty)
         {
@@ -58,6 +76,7 @@ namespace PingPongGame
             this.BackColor = ThemeManager.Colors.Background;
             this.StartPosition = FormStartPosition.CenterScreen;
             this.Size = new Size(1200, 800);
+            this.MinimumSize = new Size(800, 600);
 
             // Подписываемся на событие смены темы
             ThemeManager.OnThemeChanged += ThemeManager_OnThemeChanged;
@@ -84,7 +103,7 @@ namespace PingPongGame
             this.Controls.Add(_gamePanel);
             this.Controls.Add(_topPanel);
 
-            // Инициализируем верхнюю панель
+            // Инициализируем верхнюю панель (адаптивная разметка из ui)
             InitializeTopPanel();
 
             // ОБРАБОТЧИКИ
@@ -94,12 +113,13 @@ namespace PingPongGame
             this.FormClosing += Form1_FormClosing;
             _gamePanel.Paint += GamePanel_Paint;
             this.Resize += Form1_Resize;
+            _gamePanel.MouseClick += GamePanel_MouseClick;
 
             // Таймер обновления игры
             _timer.Interval = 16;
             _timer.Tick += Timer_Tick;
 
-            // Таймер обновления UI
+            // Таймер обновления UI (часы)
             _uiTimer.Interval = 1000;
             _uiTimer.Tick += UiTimer_Tick;
         }
@@ -120,21 +140,38 @@ namespace PingPongGame
         {
             _topPanel.Controls.Clear();
 
+            // Обработчик изменения размера верхней панели
+            _topPanel.Resize += TopPanel_Resize;
+
+            // Создаем содержимое верхней панели
+            CreateTopPanelContent();
+        }
+
+        private void CreateTopPanelContent()
+        {
+            _topPanel.Controls.Clear();
+
+            // Рассчитываем размеры пропорционально ширине окна (ui-ветка)
+            int totalWidth = _topPanel.Width;
+            int leftWidth = (int)(totalWidth * 0.25);  // 25% ширины
+            int centerWidth = (int)(totalWidth * 0.5); // 50% ширины
+            int rightWidth = (int)(totalWidth * 0.25); // 25% ширины
+
             // Левый блок: Никнейм и сложность
             Panel leftPanel = new Panel
             {
-                Size = ThemeManager.ScaledSize(new Size(300, 80)),
-                Location = new Point(20, 0),
+                Size = new Size(leftWidth - 20, _topPanel.Height),
+                Location = new Point(10, 0),
                 BackColor = Color.Transparent
             };
 
             _lblPlayerName = new Label
             {
                 Text = $"👤 {_playerName}",
-                Font = ThemeManager.ScaledFont(new Font("Segoe UI", 14, FontStyle.Bold)),
+                Font = new Font("Segoe UI", 14, FontStyle.Bold),
                 ForeColor = ThemeManager.Colors.Accent,
-                Size = ThemeManager.ScaledSize(new Size(250, 30)),
-                Location = ThemeManager.ScaledPoint(new Point(35, 15)),
+                Size = new Size(leftWidth - 40, 30),
+                Location = new Point(15, 15),
                 TextAlign = ContentAlignment.MiddleLeft,
                 BackColor = Color.Transparent
             };
@@ -142,10 +179,10 @@ namespace PingPongGame
             _lblDifficulty = new Label
             {
                 Text = $"Сложность: {DifficultyToText(_currentDifficulty)}",
-                Font = ThemeManager.ScaledFont(new Font("Segoe UI", 11)),
+                Font = new Font("Segoe UI", 11),
                 ForeColor = GetDifficultyColor(_currentDifficulty),
-                Size = ThemeManager.ScaledSize(new Size(250, 25)),
-                Location = ThemeManager.ScaledPoint(new Point(35, 45)),
+                Size = new Size(leftWidth - 40, 25),
+                Location = new Point(15, 45),
                 TextAlign = ContentAlignment.MiddleLeft,
                 BackColor = Color.Transparent
             };
@@ -156,18 +193,18 @@ namespace PingPongGame
             // Центральный блок: Счет
             Panel centerPanel = new Panel
             {
-                Size = ThemeManager.ScaledSize(new Size(400, 80)),
-                Location = new Point(400, 0),
+                Size = new Size(centerWidth, _topPanel.Height),
+                Location = new Point(leftWidth, 0),
                 BackColor = Color.Transparent
             };
 
             _lblScore = new Label
             {
                 Text = "0 : 0",
-                Font = ThemeManager.ScaledFont(new Font("Segoe UI", 36, FontStyle.Bold), 1.2f),
+                Font = new Font("Segoe UI", 36, FontStyle.Bold),
                 ForeColor = Color.White,
-                Size = ThemeManager.ScaledSize(new Size(400, 80)),
-                Location = ThemeManager.ScaledPoint(new Point(0, 0)),
+                Size = new Size(centerWidth, _topPanel.Height),
+                Location = new Point(0, 0),
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             };
@@ -177,18 +214,18 @@ namespace PingPongGame
             // Правый блок: Таймер и справка
             Panel rightPanel = new Panel
             {
-                Size = ThemeManager.ScaledSize(new Size(300, 80)),
-                Location = new Point(820, 0),
+                Size = new Size(rightWidth - 10, _topPanel.Height),
+                Location = new Point(leftWidth + centerWidth, 0),
                 BackColor = Color.Transparent
             };
 
             _lblGameTime = new Label
             {
                 Text = "⏱ 00:00",
-                Font = ThemeManager.ScaledFont(new Font("Segoe UI", 14, FontStyle.Bold)),
+                Font = new Font("Segoe UI", 14, FontStyle.Bold),
                 ForeColor = ThemeManager.Colors.Accent,
-                Size = ThemeManager.ScaledSize(new Size(150, 30)),
-                Location = ThemeManager.ScaledPoint(new Point(153, 15)),
+                Size = new Size(rightWidth - 40, 30),
+                Location = new Point(10, 15),
                 TextAlign = ContentAlignment.MiddleRight,
                 BackColor = Color.Transparent
             };
@@ -196,10 +233,10 @@ namespace PingPongGame
             _lblHelp = new Label
             {
                 Text = "F1 - Справка • ESC - Пауза",
-                Font = ThemeManager.ScaledFont(new Font("Segoe UI", 11)),
+                Font = new Font("Segoe UI", 11),
                 ForeColor = Color.FromArgb(180, 180, 180),
-                Size = ThemeManager.ScaledSize(new Size(250, 25)),
-                Location = ThemeManager.ScaledPoint(new Point(50, 45)),
+                Size = new Size(rightWidth - 40, 25),
+                Location = new Point(10, 45),
                 TextAlign = ContentAlignment.MiddleRight,
                 BackColor = Color.Transparent
             };
@@ -230,6 +267,13 @@ namespace PingPongGame
             };
         }
 
+        private void TopPanel_Resize(object sender, EventArgs e)
+        {
+            // Пересоздаем содержимое при изменении размера
+            CreateTopPanelContent();
+            UpdateTopPanelColors();
+        }
+
         private void UpdateTopPanelColors()
         {
             if (_lblPlayerName != null)
@@ -241,7 +285,7 @@ namespace PingPongGame
                 // Обновляем цвет сложности
                 _lblDifficulty.ForeColor = GetDifficultyColor(_currentDifficulty);
 
-                // Обновляем цвет счета
+                // Цвет счета (ui-логика + лидирующий игрок)
                 if (_engine != null)
                 {
                     if (_engine.ScoreLeft > _engine.ScoreRight)
@@ -254,8 +298,12 @@ namespace PingPongGame
                     }
                     else
                     {
-                        _lblScore.ForeColor = Color.White;
+                        _lblScore.ForeColor = ThemeManager.Colors.Accent;
                     }
+                }
+                else
+                {
+                    _lblScore.ForeColor = ThemeManager.Colors.Accent;
                 }
             }
         }
@@ -277,6 +325,7 @@ namespace PingPongGame
             _engine.StartRound();
             _gameStartTime = DateTime.Now;
             _scoreSaved = false;
+
             UIManager.StartGameTimer();
             _stopwatch.Start();
             _timer.Start();
@@ -287,13 +336,21 @@ namespace PingPongGame
             _lastScoreLeft = _engine.ScoreLeft;
             _lastScoreRight = _engine.ScoreRight;
             _lastBallX = _engine.Ball.X;
+
+            // Загрузка настроек звука и запуск музыки (из ui-ветки)
+            SoundManager.LoadSettings();
+            if (SoundManager.MusicEnabled)
+            {
+                SoundManager.PlayMusic();
+            }
         }
 
         private void CreateEngine()
         {
-            ThemeManager.UpdateScale(_gamePanel.ClientSize);
+            // Масштаб темы под текущий размер формы
+            ThemeManager.UpdateScale(this.Size);
 
-            // Масштабируем размеры объектов - ДЕЛАЕМ ИХ БОЛЬШЕ
+            // Масштабируем размеры объектов
             _settings = new GameSettings(
                 fieldWidth: _gamePanel.ClientSize.Width,
                 fieldHeight: _gamePanel.ClientSize.Height,
@@ -306,11 +363,24 @@ namespace PingPongGame
 
         private void Form1_Resize(object sender, EventArgs e)
         {
-            if (_engine != null && this.WindowState != FormWindowState.Minimized)
+            if (this.WindowState != FormWindowState.Minimized)
             {
-                CreateEngine();
-                _gamePanel.Invalidate();
-                UpdateTopPanel();
+                // Обновляем масштаб темы
+                ThemeManager.UpdateScale(this.Size);
+
+                if (_gamePanel != null)
+                {
+                    CreateEngine();
+
+                    // Обновляем верхнюю панель при ресайзе
+                    if (_topPanel != null)
+                    {
+                        CreateTopPanelContent();
+                    }
+
+                    _gamePanel.Invalidate();
+                    UpdateTopPanel();
+                }
             }
         }
 
@@ -321,13 +391,27 @@ namespace PingPongGame
             float dt = (float)_stopwatch.Elapsed.TotalSeconds;
             _stopwatch.Restart();
 
-            // Сохраняем положение мяча до обновления
+            // Если показывается диалог - не обновляем игру, только перерисовываем
+            if (_dialogState == DialogState.Showing)
+            {
+                _gamePanel.Invalidate();
+                return;
+            }
+
+            // Если игра на паузе - только перерисовываем
+            if (_engine.State == GameState.Paused)
+            {
+                _gamePanel.Invalidate();
+                return;
+            }
+
+            // Положение мяча до обновления (для хит-детекта звуков)
             float ballXBefore = _engine.Ball.X;
             float ballYBefore = _engine.Ball.Y;
 
             _engine.Update(dt);
 
-            // --- СОХРАНЕНИЕ РЕЗУЛЬТАТА В БД ПРИ GAME OVER ---
+            // --- СОХРАНЕНИЕ РЕЗУЛЬТАТА В БД ПРИ GAME OVER (из game-logic) ---
             if (_engine.State == GameState.GameOver && !_scoreSaved)
             {
                 _scoreSaved = true;
@@ -359,9 +443,9 @@ namespace PingPongGame
                         MessageBoxIcon.Error);
                 }
             }
-            // -------------------------------------------------
+            // --------------------------------------------------------------
 
-            // Проверяем звуки ПОСЛЕ обновления игры
+            // Продвинутые звуки (гол + отскок от ракеток)
             CheckSounds(ballXBefore, ballYBefore);
 
             // Обновляем счет
@@ -369,8 +453,6 @@ namespace PingPongGame
 
             _gamePanel.Invalidate();
         }
-
-
 
         private void CheckSounds(float ballXBefore, float ballYBefore)
         {
@@ -380,32 +462,32 @@ namespace PingPongGame
             var leftPaddle = _engine.LeftPaddle;
             var rightPaddle = _engine.RightPaddle;
 
-            // 1. Проверяем изменение счета
+            // 1. Изменение счета (гол)
             if (_engine.ScoreLeft != _lastScoreLeft || _engine.ScoreRight != _lastScoreRight)
             {
-                ThemeManager.PlayScoreSound();
+                // Используем SoundManager из ui-ветки
+                SoundManager.PlayGoalSound();
                 _lastScoreLeft = _engine.ScoreLeft;
                 _lastScoreRight = _engine.ScoreRight;
             }
 
-            // 2. Проверяем столкновение мяча с ракетками
-            // Проверяем левую ракетку
+            // 2. Столкновение мяча с ракетками (хит)
             bool hitLeft = ballXBefore <= leftPaddle.X + leftPaddle.Width &&
-                          ballXBefore + ball.Radius >= leftPaddle.X &&
-                          ballYBefore + ball.Radius >= leftPaddle.Y &&
-                          ballYBefore <= leftPaddle.Y + leftPaddle.Height &&
-                          ball.VelocityX > 0; // Двигался вправо
+                           ballXBefore + ball.Radius >= leftPaddle.X &&
+                           ballYBefore + ball.Radius >= leftPaddle.Y &&
+                           ballYBefore <= leftPaddle.Y + leftPaddle.Height &&
+                           ball.VelocityX > 0; // летел вправо
 
-            // Проверяем правую ракетку
             bool hitRight = ballXBefore + ball.Radius >= rightPaddle.X &&
-                           ballXBefore <= rightPaddle.X + rightPaddle.Width &&
-                           ballYBefore + ball.Radius >= rightPaddle.Y &&
-                           ballYBefore <= rightPaddle.Y + rightPaddle.Height &&
-                           ball.VelocityX < 0; // Двигался влево
+                            ballXBefore <= rightPaddle.X + rightPaddle.Width &&
+                            ballYBefore + ball.Radius >= rightPaddle.Y &&
+                            ballYBefore <= rightPaddle.Y + rightPaddle.Height &&
+                            ball.VelocityX < 0; // летел влево
 
             if ((hitLeft && !_lastHitLeft) || (hitRight && !_lastHitRight))
             {
-                ThemeManager.PlayHitSound();
+             
+       
             }
 
             _lastHitLeft = hitLeft;
@@ -428,6 +510,24 @@ namespace PingPongGame
             e.Graphics.SmoothingMode = System.Drawing.Drawing2D.SmoothingMode.HighQuality;
             _gameRenderer.Render(e.Graphics, _gamePanel.ClientRectangle);
 
+            // Если показывается диалог - рисуем только его поверх игры
+            if (_dialogState == DialogState.Showing)
+            {
+                if (_pendingAction == DialogAction.Help)
+                {
+                    UIManager.DrawHelpDialog(e.Graphics, _gamePanel.ClientRectangle);
+                }
+                else
+                {
+                    UIManager.DrawCustomConfirmDialog(
+                        e.Graphics,
+                        _gamePanel.ClientRectangle,
+                        _dialogTitle,
+                        _dialogMessage);
+                }
+                return;
+            }
+
             // Пауза
             if (_engine.State == GameState.Paused)
             {
@@ -438,7 +538,7 @@ namespace PingPongGame
             if (_engine.State == GameState.WaitingToStart)
             {
                 string text = "НАЖМИТЕ SPACE ДЛЯ НАЧАЛА";
-                using (Font font = ThemeManager.ScaledFont(new Font("Segoe UI", 24, FontStyle.Bold)))
+                using (Font font = new Font("Segoe UI", 24, FontStyle.Bold))
                 {
                     SizeF textSize = e.Graphics.MeasureString(text, font);
 
@@ -460,11 +560,12 @@ namespace PingPongGame
                 UIManager.StopGameTimer();
 
                 string winner = _engine.ScoreLeft > _engine.ScoreRight ? "ИГРОК 1" : "ИГРОК 2";
-                Color winnerColor = _engine.ScoreLeft > _engine.ScoreRight ?
-                    ThemeManager.Colors.Player1 : ThemeManager.Colors.Player2;
+                Color winnerColor = _engine.ScoreLeft > _engine.ScoreRight
+                    ? ThemeManager.Colors.Player1
+                    : ThemeManager.Colors.Player2;
 
-                using (Font font1 = ThemeManager.ScaledFont(new Font("Segoe UI", 28, FontStyle.Bold)))
-                using (Font font2 = ThemeManager.ScaledFont(new Font("Segoe UI", 18, FontStyle.Regular)))
+                using (Font font1 = new Font("Segoe UI", 28, FontStyle.Bold))
+                using (Font font2 = new Font("Segoe UI", 18, FontStyle.Regular))
                 {
                     string text1 = $"ИГРА ОКОНЧЕНА! ПОБЕДИТЕЛЬ: {winner}";
                     string text2 = "SPACE - НОВАЯ ИГРА, M - МЕНЮ";
@@ -512,10 +613,8 @@ namespace PingPongGame
         {
             if (_engine != null)
             {
-                // Обновляем счет
                 _lblScore.Text = $"{_engine.ScoreLeft} : {_engine.ScoreRight}";
 
-                // Обновляем цвет счета в зависимости от лидера
                 if (_engine.ScoreLeft > _engine.ScoreRight)
                 {
                     _lblScore.ForeColor = ThemeManager.Colors.Player1;
@@ -526,14 +625,103 @@ namespace PingPongGame
                 }
                 else
                 {
-                    _lblScore.ForeColor = Color.White;
+                    _lblScore.ForeColor = ThemeManager.Colors.Accent;
                 }
             }
         }
 
+        // ---------- Диалоговая система (из ui-ветки) ----------
+
+        private void ShowDialog(DialogAction action, string title = "", string message = "")
+        {
+            _dialogState = DialogState.Showing;
+            _pendingAction = action;
+            _dialogTitle = title;
+            _dialogMessage = message;
+
+            // Паузим игру и таймер
+            if (_engine != null && _engine.State == GameState.Playing)
+            {
+                _engine.Pause();
+                UIManager.PauseTimer();
+            }
+
+            _gamePanel.Invalidate();
+        }
+
+        private void CloseDialog()
+        {
+            _dialogState = DialogState.None;
+            _pendingAction = DialogAction.None;
+            _dialogTitle = "";
+            _dialogMessage = "";
+
+            // Возобновляем игру и таймер, если была пауза
+            if (_engine != null &&
+                _engine.State == GameState.Paused &&
+                !(_engine.State == GameState.WaitingToStart || _engine.State == GameState.GameOver))
+            {
+                _engine.Resume();
+                UIManager.ResumeTimer();
+            }
+
+            _gamePanel.Invalidate();
+        }
+
+        private void ConfirmDialog(bool result)
+        {
+            if (result)
+            {
+                switch (_pendingAction)
+                {
+                    case DialogAction.Restart:
+                        _engine.ResetGame();
+                        _engine.StartRound();
+                        UIManager.StartGameTimer(); // Сбрасываем и запускаем таймер
+                        _lastScoreLeft = 0;
+                        _lastScoreRight = 0;
+                        _gameStartTime = DateTime.Now;
+                        _scoreSaved = false;
+                        break;
+
+                    case DialogAction.Menu:
+                        ThemeManager.OnThemeChanged -= ThemeManager_OnThemeChanged;
+                        this.Close();
+                        Application.Restart();
+                        return;
+                }
+            }
+
+            CloseDialog();
+        }
+
+        // ------------------------------------------------------
+
         private void Form1_KeyDown(object sender, KeyEventArgs e)
         {
             if (_engine == null) return;
+
+            // Если открыт диалог - обрабатываем только ESC и Enter
+            if (_dialogState == DialogState.Showing)
+            {
+                if (e.KeyCode == Keys.Escape)
+                {
+                    if (_pendingAction == DialogAction.Help)
+                    {
+                        CloseDialog();
+                    }
+                    else
+                    {
+                        ConfirmDialog(false); // ESC = Нет
+                    }
+                }
+                else if (e.KeyCode == Keys.Enter && _pendingAction != DialogAction.Help)
+                {
+                    // Enter = Да
+                    ConfirmDialog(true);
+                }
+                return;
+            }
 
             // Управление
             if (e.KeyCode == Keys.W) _engine.LeftPaddle.DirectionY = -1;
@@ -544,8 +732,16 @@ namespace PingPongGame
             // Пауза
             if (e.KeyCode == Keys.Escape || e.KeyCode == Keys.P)
             {
-                if (_engine.State == GameState.Playing) _engine.Pause();
-                else if (_engine.State == GameState.Paused) _engine.Resume();
+                if (_engine.State == GameState.Playing)
+                {
+                    _engine.Pause();
+                    UIManager.PauseTimer();
+                }
+                else if (_engine.State == GameState.Paused)
+                {
+                    _engine.Resume();
+                    UIManager.ResumeTimer();
+                }
             }
 
             // Старт/Новая игра
@@ -572,36 +768,22 @@ namespace PingPongGame
                 }
             }
 
-
-            // Рестарт
-            if (e.KeyCode == Keys.R && MessageBox.Show("Начать новую игру?", "Рестарт",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            // Рестарт (через кастомный диалог)
+            if (e.KeyCode == Keys.R)
             {
-                _engine.ResetGame();
-                _engine.StartRound();
-                UIManager.StartGameTimer();
-                _lastScoreLeft = 0;
-                _lastScoreRight = 0;
-                _gameStartTime = DateTime.Now;
-                _scoreSaved = false;
+                ShowDialog(DialogAction.Restart, "РЕСТАРТ", "Начать новую игру?");
             }
 
-
-            // Меню
-            if (e.KeyCode == Keys.M && MessageBox.Show("Вернуться в меню?", "Меню",
-                MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.Yes)
+            // Меню (через кастомный диалог)
+            if (e.KeyCode == Keys.M)
             {
-                ThemeManager.OnThemeChanged -= ThemeManager_OnThemeChanged;
-                this.Close();
-                Application.Restart();
+                ShowDialog(DialogAction.Menu, "ВЫХОД В МЕНЮ", "Вернуться в главное меню?");
             }
 
-            // Справка
+            // Справка (отрисовывается поверх игры)
             if (e.KeyCode == Keys.F1)
             {
-                if (_engine.State == GameState.Playing) _engine.Pause();
-                new ControlsForm().ShowDialog();
-                if (_engine.State == GameState.Paused) _engine.Resume();
+                ShowDialog(DialogAction.Help);
             }
         }
 
@@ -615,6 +797,37 @@ namespace PingPongGame
                 _engine.RightPaddle.DirectionY = 0;
         }
 
+        private void GamePanel_MouseClick(object sender, MouseEventArgs e)
+        {
+            // Обработка кликов по кнопкам Да/Нет в диалоге подтверждения
+            if (_dialogState != DialogState.Showing || _pendingAction == DialogAction.Help)
+                return;
+
+            Rectangle bounds = _gamePanel.ClientRectangle;
+
+            // Координаты кнопок (должны совпадать с DrawCustomConfirmDialog)
+            RectangleF yesButton = new RectangleF(
+                bounds.Width / 2 - ThemeManager.Scaled(120),
+                bounds.Height / 2 + ThemeManager.Scaled(30),
+                ThemeManager.Scaled(100),
+                ThemeManager.Scaled(40));
+
+            RectangleF noButton = new RectangleF(
+                bounds.Width / 2 + ThemeManager.Scaled(20),
+                bounds.Height / 2 + ThemeManager.Scaled(30),
+                ThemeManager.Scaled(100),
+                ThemeManager.Scaled(40));
+
+            if (yesButton.Contains(e.Location))
+            {
+                ConfirmDialog(true);
+            }
+            else if (noButton.Contains(e.Location))
+            {
+                ConfirmDialog(false);
+            }
+        }
+
         private string DifficultyToText(AIDifficulty difficulty)
         {
             if (difficulty == AIDifficulty.Easy) return "ЛЕГКИЙ";
@@ -624,44 +837,31 @@ namespace PingPongGame
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
-            if (_engine != null && _engine.State == GameState.Playing)
+            // Если игра идет и диалога еще нет - показываем диалог выхода
+            if (_engine != null &&
+                _engine.State == GameState.Playing &&
+                _dialogState == DialogState.None)
             {
-                if (MessageBox.Show("Выйти из игры?", "Выход",
-                    MessageBoxButtons.YesNo, MessageBoxIcon.Question) == DialogResult.No)
-                {
-                    e.Cancel = true;
-                }
+                ShowDialog(DialogAction.Menu, "ВЫХОД ИЗ ИГРЫ", "Вы действительно хотите выйти?");
+                e.Cancel = true;
+                return;
+            }
+
+            // Останавливаем таймеры
+            if (_timer != null && _timer.Enabled)
+            {
+                _timer.Stop();
+                _timer.Dispose();
+            }
+
+            if (_uiTimer != null && _uiTimer.Enabled)
+            {
+                _uiTimer.Stop();
+                _uiTimer.Dispose();
             }
 
             // Отписываемся от события
             ThemeManager.OnThemeChanged -= ThemeManager_OnThemeChanged;
-        }
-    }
-
-    // Форма справки
-    public class ControlsForm : Form
-    {
-        public ControlsForm()
-        {
-            this.Text = "Управление";
-            this.Size = new Size(400, 300);
-            this.StartPosition = FormStartPosition.CenterScreen;
-            this.BackColor = Color.FromArgb(40, 40, 60);
-
-            Label label = new Label();
-            label.Text = "W/S - Игрок 1 (левая ракетка)\n" +
-                         "↑/↓ - Игрок 2 (правая ракетка)\n" +
-                         "ESC или P - Пауза\n" +
-                         "SPACE - Старт/Новая игра\n" +
-                         "R - Рестарт\n" +
-                         "M - Меню\n" +
-                         "F1 - Справка";
-            label.Font = new Font("Arial", 14);
-            label.ForeColor = Color.White;
-            label.Size = new Size(380, 250);
-            label.Location = new Point(10, 10);
-
-            this.Controls.Add(label);
         }
     }
 }

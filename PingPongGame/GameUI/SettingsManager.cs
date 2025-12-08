@@ -23,7 +23,7 @@ namespace PingPongGame
             public string PlayerName { get; set; } = "Player";
             public AIDifficulty Difficulty { get; set; } = AIDifficulty.Normal;
 
-            // ИСПРАВЛЕНО ЗДЕСЬ - разные цвета для ракеток
+            // Цвета
             public string ThemeName { get; set; } = "Неон Розовый";
             public string BackgroundColor { get; set; } = "0A0A0F";
             public string Paddle1Color { get; set; } = "00FFFF"; // Голубой
@@ -32,6 +32,11 @@ namespace PingPongGame
             public string TextColor { get; set; } = "FFFFFF";
             public string CourtColor { get; set; } = "1A1A2E";
             public string AccentColor { get; set; } = "FF00FF";
+
+            // НОВЫЕ: Настройки звука
+           
+            public bool MusicEnabled { get; set; } = true;
+            public bool SoundsEnabled { get; set; } = true;
         }
 
         [Serializable]

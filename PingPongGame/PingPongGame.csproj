@@ -120,6 +120,7 @@
     </Compile>
     <Compile Include="GameUI\GameRenderer.cs" />
     <Compile Include="GameUI\SettingsManager.cs" />
+    <Compile Include="GameUI\SoundManager.cs" />
     <Compile Include="GameUI\ThemeManager.cs" />
     <Compile Include="GameUI\UIManager.cs" />
     <Compile Include="MenuForm.cs">
