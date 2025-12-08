@@ -24,6 +24,9 @@ namespace PingPongGame
         {
             Settings = GameSettingsManager.LoadSettings();
 
+            // Устанавливаем текущую форму для SoundManager
+            SoundManager.LoadSettings();
+
             // Подписываемся на событие смены темы
             ThemeManager.OnThemeChanged += ThemeManager_OnThemeChanged;
 
@@ -49,7 +52,7 @@ namespace PingPongGame
             // Заголовок
             Label titleLabel = new Label
             {
-                Text = "PING PONG",
+                Text = "NEO-PONG",
                 Font = ThemeManager.ScaledFont(new Font("Segoe UI", 48, FontStyle.Bold), 1.2f),
                 ForeColor = ThemeManager.Colors.Accent,
                 TextAlign = ContentAlignment.MiddleCenter,
@@ -221,6 +224,7 @@ namespace PingPongGame
 
             button.FlatAppearance.BorderSize = 0;
             button.FlatAppearance.MouseOverBackColor = ThemeManager.Colors.Accent;
+            button.FlatAppearance.MouseDownBackColor = Color.FromArgb(100, ThemeManager.Colors.Accent);
 
             return button;
         }
@@ -233,13 +237,21 @@ namespace PingPongGame
             if (_currentButton != null)
             {
                 _currentButton.BackColor = Color.FromArgb(60, 60, 80);
+                _currentButton.ForeColor = ThemeManager.Colors.Text;
                 _currentButton.Font = new Font(_currentButton.Font, FontStyle.Regular);
             }
 
             content.Visible = true;
             _currentContent = content;
 
+            // Сбрасываем прокрутку при переключении
+            if (content.AutoScroll)
+            {
+                content.AutoScrollPosition = new Point(0, 0);
+            }
+
             button.BackColor = ThemeManager.Colors.Accent;
+            button.ForeColor = Color.Black;
             button.Font = new Font(button.Font, FontStyle.Bold);
             _currentButton = button;
         }
@@ -357,10 +369,10 @@ namespace PingPongGame
 
             // Цветовые темы
             string[,] themes = {
-                { "Неон Розовый", "0A0A0F", "FF00FF", "FF00FF", "FFFFFF", "FFFFFF", "1A1A2E", "FF00FF" },
-                { "Неон Фиолет", "0F0F1A", "9D00FF", "9D00FF", "00FFFF", "F0F0FF", "1E1B2E", "9D00FF" },
-                { "Неон Оранж", "1A0F0A", "FF7700", "FF7700", "FFFF00", "FFFFFF", "2E1A1A", "FF7700" }
-            };
+        { "Неон Розовый", "0A0A0F", "FF00FF", "FF00FF", "FFFFFF", "FFFFFF", "1A1A2E", "FF00FF" },
+        { "Неон Фиолет", "0F0F1A", "9D00FF", "9D00FF", "00FFFF", "F0F0FF", "1E1B2E", "9D00FF" },
+        { "Неон Оранж", "1A0F0A", "FF7700", "FF7700", "FFFF00", "FFFFFF", "2E1A1A", "FF7700" }
+    };
 
             Label themeLabel = new Label
             {
@@ -454,72 +466,76 @@ namespace PingPongGame
             panel.Controls.Add(applyButton);
             _allControls.Add(applyButton);
 
-            yPos += 60;
+            yPos += 70;
 
-            // Настройки звука
-            Label soundLabel = new Label
+            // Разделительная линия
+            Panel separator1 = new Panel
             {
-                Text = "Настройки звука:",
-                Font = ThemeManager.ScaledFont(new Font("Segoe UI", 13, FontStyle.Bold)),
+                Size = ThemeManager.ScaledSize(new Size(500, 1)),
+                Location = ThemeManager.ScaledPoint(new Point(20, yPos)),
+                BackColor = Color.FromArgb(80, ThemeManager.Colors.Accent)
+            };
+            panel.Controls.Add(separator1);
+            _allControls.Add(separator1);
+
+            yPos += 20;
+
+            // Настройки звука - ЗАГОЛОВОК
+            Label soundHeader = new Label
+            {
+                Text = "НАСТРОЙКИ ЗВУКА",
+                Font = ThemeManager.ScaledFont(new Font("Segoe UI", 14, FontStyle.Bold)),
                 ForeColor = ThemeManager.Colors.Accent,
-                Size = ThemeManager.ScaledSize(new Size(200, 30)),
+                Size = ThemeManager.ScaledSize(new Size(300, 30)),
                 Location = ThemeManager.ScaledPoint(new Point(30, yPos)),
                 BackColor = Color.Transparent
             };
-            panel.Controls.Add(soundLabel);
-            _allControls.Add(soundLabel);
+            panel.Controls.Add(soundHeader);
+            _allControls.Add(soundHeader);
 
             yPos += 40;
 
-            // Музыка
-            Label musicLabel = new Label
+            // Включение музыки (ПРОСТОЙ ЧЕКБОКС)
+            CheckBox musicCheckbox = new CheckBox
             {
-                Text = "Фоновая музыка:",
+                Text = "  Фоновая музыка",
+                Checked = SoundManager.MusicEnabled,
                 Font = ThemeManager.ScaledFont(new Font("Segoe UI", 11)),
                 ForeColor = ThemeManager.Colors.Text,
-                Size = ThemeManager.ScaledSize(new Size(150, 25)),
+                Size = ThemeManager.ScaledSize(new Size(200, 25)),
                 Location = ThemeManager.ScaledPoint(new Point(50, yPos)),
                 BackColor = Color.Transparent
             };
-            panel.Controls.Add(musicLabel);
-            _allControls.Add(musicLabel);
-
-            CheckBox musicCheckbox = new CheckBox
-            {
-                Checked = ThemeManager.MusicEnabled,
-                Size = ThemeManager.ScaledSize(new Size(20, 20)),
-                Location = ThemeManager.ScaledPoint(new Point(220, yPos))
-            };
             musicCheckbox.CheckedChanged += (s, e) =>
-                ThemeManager.MusicEnabled = musicCheckbox.Checked;
+            {
+                SoundManager.MusicEnabled = musicCheckbox.Checked;
+                SoundManager.SaveSettings();
+            };
             panel.Controls.Add(musicCheckbox);
             _allControls.Add(musicCheckbox);
 
             yPos += 40;
 
-            // Звуковые эффекты
-            Label soundsLabel = new Label
+            // Включение звуковых эффектов (ПРОСТОЙ ЧЕКБОКС)
+            CheckBox soundsCheckbox = new CheckBox
             {
-                Text = "Звуковые эффекты:",
+                Text = "  Звуковые эффекты",
+                Checked = SoundManager.SoundsEnabled,
                 Font = ThemeManager.ScaledFont(new Font("Segoe UI", 11)),
                 ForeColor = ThemeManager.Colors.Text,
-                Size = ThemeManager.ScaledSize(new Size(150, 25)),
+                Size = ThemeManager.ScaledSize(new Size(200, 25)),
                 Location = ThemeManager.ScaledPoint(new Point(50, yPos)),
                 BackColor = Color.Transparent
             };
-            panel.Controls.Add(soundsLabel);
-            _allControls.Add(soundsLabel);
-
-            CheckBox soundsCheckbox = new CheckBox
-            {
-                Checked = ThemeManager.SoundsEnabled,
-                Size = ThemeManager.ScaledSize(new Size(20, 20)),
-                Location = ThemeManager.ScaledPoint(new Point(220, yPos))
-            };
             soundsCheckbox.CheckedChanged += (s, e) =>
-                ThemeManager.SoundsEnabled = soundsCheckbox.Checked;
+            {
+                SoundManager.SoundsEnabled = soundsCheckbox.Checked;
+                SoundManager.SaveSettings();
+            };
             panel.Controls.Add(soundsCheckbox);
             _allControls.Add(soundsCheckbox);
+
+            
 
             return panel;
         }
@@ -600,21 +616,98 @@ namespace PingPongGame
             {
                 Size = ThemeManager.ScaledSize(new Size(560, 460)),
                 Location = ThemeManager.ScaledPoint(new Point(10, 10)),
-                BackColor = Color.Transparent
+                BackColor = Color.FromArgb(50, 50, 60) // Простой темный фон
             };
 
-            Label label = new Label
+            // Заголовок
+            Label titleLabel = new Label
             {
-                Text = "PING PONG GAME\n\nВерсия 2.0\n\nКлассическая игра Ping Pong\nс современным интерфейсом",
-                Font = ThemeManager.ScaledFont(new Font("Segoe UI", 16)),
+                Text = "NEO-PONG",
+                Font = new Font("Segoe UI", 28, FontStyle.Bold),
                 ForeColor = ThemeManager.Colors.Accent,
-                Size = ThemeManager.ScaledSize(new Size(500, 200)),
-                Location = ThemeManager.ScaledPoint(new Point(30, 100)),
+                Size = new Size(540, 50),
+                Location = new Point(10, 20),
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             };
-            panel.Controls.Add(label);
-            _allControls.Add(label);
+            panel.Controls.Add(titleLabel);
+
+            // Подзаголовок
+            Label subtitleLabel = new Label
+            {
+                Text = "Новое поколение классики",
+                Font = new Font("Segoe UI", 12, FontStyle.Italic),
+                ForeColor = Color.FromArgb(200, ThemeManager.Colors.Text),
+                Size = new Size(540, 25),
+                Location = new Point(10, 75),
+                TextAlign = ContentAlignment.MiddleCenter,
+                BackColor = Color.Transparent
+            };
+            panel.Controls.Add(subtitleLabel);
+
+            // Панель с текстом
+            Panel textPanel = new Panel
+            {
+                Size = new Size(540, 320),
+                Location = new Point(10, 110),
+                BackColor = Color.FromArgb(40, 40, 50), // Темный фон для текста
+                BorderStyle = BorderStyle.FixedSingle,
+                ForeColor = ThemeManager.Colors.Accent
+            };
+
+            // RichTextBox для текста
+            RichTextBox aboutText = new RichTextBox
+            {
+                Multiline = true,
+                ReadOnly = true,
+                WordWrap = true,
+                BorderStyle = BorderStyle.None,
+                BackColor = Color.FromArgb(40, 40, 50),
+                ForeColor = ThemeManager.Colors.Text,
+                Font = new Font("Segoe UI", 10),
+                Size = new Size(525, 305),
+                Location = new Point(5, 5),
+                ScrollBars = RichTextBoxScrollBars.Vertical
+            };
+
+            // Текст об игре
+            string aboutGame = @"ОБ ИГРЕ:
+
+NEO-PONG — это современная версия классической игры Pong
+с неоновой графикой и улучшенным геймплеем.
+
+РАЗРАБОТЧИКИ:
+• Каширский Константин 
+• Леонов Егор 
+• Журавлев Павел 
+
+ПРЕИМУЩЕСТВА:
+• 3 уровня сложности ИИ
+• Несколько цветовых тем
+• Плавная анимация и эффекты
+• Простое управление
+• Настройка звуков
+
+ТЕХНОЛОГИИ:
+• Язык: C#
+• Платформа: .NET Framework
+• Интерфейс: Windows Forms
+
+ОСОБЕННОСТИ:
+• Реалистичная физика мяча
+• Система подсчета очков
+• Таймер матчей
+• Пауза и диалоги
+• Сохранение настроек
+
+© 2025 NEO-PONG Team";
+
+            aboutText.Text = aboutGame;
+            textPanel.Controls.Add(aboutText);
+
+            panel.Controls.Add(textPanel);
+
+            
 
             return panel;
         }
@@ -631,17 +724,21 @@ namespace PingPongGame
                 _contentPanel.Invalidate();
             }
 
+            // Перерисовываем все элементы управления
             foreach (var control in _allControls)
             {
                 UpdateControlColors(control);
             }
 
-            // Перерисовываем активную кнопку
+            // Обновляем активную кнопку
             if (_currentButton != null)
             {
                 _currentButton.BackColor = ThemeManager.Colors.Accent;
+                _currentButton.ForeColor = Color.Black;
+                _currentButton.Font = new Font(_currentButton.Font, FontStyle.Bold);
             }
 
+            // Перерисовываем форму
             this.Invalidate();
         }
 
@@ -649,6 +746,7 @@ namespace PingPongGame
         {
             if (control is Label label)
             {
+                // Заголовки и специальные надписи
                 if (label.Text == "PING PONG" || label.Text == "МЕНЮ" ||
                     label.Text.Contains("ТАБЛИЦА") || label.Text.Contains("Настройки") ||
                     label.Text.Contains("Цветовая") || label.Text.Contains("Сложность") ||
@@ -661,6 +759,11 @@ namespace PingPongGame
                 {
                     label.ForeColor = ThemeManager.Colors.Text;
                 }
+                else if (label.ForeColor == ThemeManager.Colors.Text ||
+                         label.ForeColor == ThemeManager.Colors.Accent)
+                {
+                    // Оставляем как есть если уже установлен правильный цвет
+                }
                 else
                 {
                     label.ForeColor = ThemeManager.Colors.Text;
@@ -668,32 +771,52 @@ namespace PingPongGame
             }
             else if (control is Button button)
             {
-                if (button.Text == "✕" || button.Text == "🎮 НАЧАТЬ ИГРУ" ||
-                    button.Text == "ПРИМЕНИТЬ ТЕМУ" || button == _currentButton)
+                // Важно: сохраняем выделение активной кнопки!
+                if (button == _currentButton)
+                {
+                    button.BackColor = ThemeManager.Colors.Accent;
+                    button.ForeColor = Color.Black;
+                    button.Font = new Font(button.Font, FontStyle.Bold);
+                }
+                else
+                {
+                    // Для остальных кнопок - стандартный стиль
+                    button.BackColor = Color.FromArgb(60, 60, 80);
+                    button.ForeColor = ThemeManager.Colors.Text;
+                    button.Font = new Font(button.Font, FontStyle.Regular);
+                }
+
+                // Эффект при наведении для всех кнопок
+                button.FlatAppearance.MouseOverBackColor = ThemeManager.Colors.Accent;
+
+                // Специальные кнопки
+                if (button.Text == "✕")
                 {
                     button.BackColor = ThemeManager.Colors.Accent;
                     button.ForeColor = Color.Black;
                 }
-                else
-                {
-                    button.BackColor = Color.FromArgb(60, 60, 80);
-                    button.ForeColor = ThemeManager.Colors.Text;
-                }
-                button.FlatAppearance.MouseOverBackColor = ThemeManager.Colors.Accent;
             }
             else if (control is TextBox textBox)
             {
                 textBox.BackColor = Color.FromArgb(60, 60, 80);
                 textBox.ForeColor = ThemeManager.Colors.Text;
+                textBox.BorderStyle = BorderStyle.FixedSingle;
             }
             else if (control is ComboBox comboBox)
             {
                 comboBox.BackColor = Color.FromArgb(60, 60, 80);
                 comboBox.ForeColor = ThemeManager.Colors.Text;
+                comboBox.FlatStyle = FlatStyle.Flat;
+            }
+            else if (control is CheckBox checkBox)
+            {
+                checkBox.ForeColor = ThemeManager.Colors.Text;
             }
             else if (control is Panel panel)
             {
-                if (panel.Name != "menuPanel" && panel.Name != "contentPanel")
+                // Только для обычных панелей, не для меню и контента
+                if (panel != _menuPanel && panel != _contentPanel &&
+                    !panel.Name.Contains("menu") && !panel.Name.Contains("content"))
                 {
                     panel.BackColor = Color.FromArgb(60, 60, 80);
                 }

@@ -1,41 +1,28 @@
-﻿using System;
+﻿using PingPongGame;
 using System.Windows.Forms;
+using System;
 
-namespace PingPongGame
+static class Program
 {
-    internal static class Program
+    [STAThread]
+    static void Main()
     {
-        [STAThread]
-        static void Main()
+        // Останавливаем музыку при запуске (на всякий случай)
+        SoundManager.StopMusic();
+
+        Application.EnableVisualStyles();
+        Application.SetCompatibleTextRenderingDefault(false);
+
+        using (MenuForm menu = new MenuForm())
         {
-            Application.EnableVisualStyles();
-            Application.SetCompatibleTextRenderingDefault(false);
-
-            // Загружаем настройки
-            var settings = GameSettingsManager.LoadSettings();
-            ThemeManager.SetTheme(settings);
-
-            // Запускаем фоновую музыку
-            ThemeManager.PlayBackgroundMusic();
-
-            // Меню
-            using (MenuForm menuForm = new MenuForm())
+            if (menu.ShowDialog() == DialogResult.OK)
             {
-                if (menuForm.ShowDialog() == DialogResult.OK)
-                {
-                    // Обновляем тему
-                    var currentSettings = GameSettingsManager.LoadSettings();
-                    ThemeManager.SetTheme(currentSettings);
+                // Останавливаем музыку перед запуском игры
+                SoundManager.StopMusic();
 
-                    // Запускаем игру
-                    Application.Run(new Form1(
-                        menuForm.PlayerName,
-                        menuForm.SelectedDifficulty));
-                }
+                // Запускаем игру
+                Application.Run(new Form1(menu.PlayerName, menu.SelectedDifficulty));
             }
-
-            // Останавливаем музыку при выходе
-            ThemeManager.StopBackgroundMusic();
         }
     }
 }

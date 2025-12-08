@@ -10,6 +10,9 @@ namespace PingPongGame.GameUI
     {
         private static DateTime _gameStartTime;
         private static bool _isTimerStarted = false;
+        private static bool _isPaused = false;
+        private static TimeSpan _pausedTimeSpan = TimeSpan.Zero;
+        private static DateTime _pauseStartTime;
 
         // Для подтверждения выхода
         private static bool _showExitConfirm = false;
@@ -20,6 +23,8 @@ namespace PingPongGame.GameUI
         {
             _gameStartTime = DateTime.Now;
             _isTimerStarted = true;
+            _isPaused = false;
+            _pausedTimeSpan = TimeSpan.Zero;
         }
 
         public static void StopGameTimer()
@@ -27,12 +32,41 @@ namespace PingPongGame.GameUI
             _isTimerStarted = false;
         }
 
+        public static void PauseTimer()
+        {
+            if (_isTimerStarted && !_isPaused)
+            {
+                _isPaused = true;
+                _pauseStartTime = DateTime.Now;
+            }
+        }
+
+        public static void ResumeTimer()
+        {
+            if (_isTimerStarted && _isPaused)
+            {
+                _isPaused = false;
+                // Добавляем время паузы к общему времени
+                _pausedTimeSpan += DateTime.Now - _pauseStartTime;
+            }
+        }
+
         public static string GetGameTime()
         {
             if (!_isTimerStarted) return "00:00";
 
-            TimeSpan elapsed = DateTime.Now - _gameStartTime;
-            return $"{(int)elapsed.TotalMinutes:00}:{elapsed.Seconds:00}";
+            if (_isPaused)
+            {
+                // Время на момент паузы
+                TimeSpan elapsed = _pauseStartTime - _gameStartTime - _pausedTimeSpan;
+                return $"{(int)elapsed.TotalMinutes:00}:{elapsed.Seconds:00}";
+            }
+            else
+            {
+                // Активное время игры (исключая время пауз)
+                TimeSpan elapsed = DateTime.Now - _gameStartTime - _pausedTimeSpan;
+                return $"{(int)elapsed.TotalMinutes:00}:{elapsed.Seconds:00}";
+            }
         }
 
         // Метод для показа диалога подтверждения
@@ -266,7 +300,247 @@ namespace PingPongGame.GameUI
                 buttonRect.Y + (buttonRect.Height - textSize.Height) / 2);
         }
 
-        // Остальные методы остаются без изменений...
+        // НОВЫЙ МЕТОД: диалог подтверждения с кнопками
+        public static void DrawCustomConfirmDialog(Graphics g, Rectangle bounds, string title, string message,
+            string buttonYes = "ДА", string buttonNo = "НЕТ")
+        {
+            // Затемнение
+            using (Brush darkenBrush = new SolidBrush(Color.FromArgb(180, 0, 0, 0)))
+            {
+                g.FillRectangle(darkenBrush, bounds);
+            }
+
+            // Панель диалога
+            RectangleF dialogRect = new RectangleF(
+                bounds.Width / 2 - ThemeManager.Scaled(200),
+                bounds.Height / 2 - ThemeManager.Scaled(100),
+                ThemeManager.Scaled(400),
+                ThemeManager.Scaled(200));
+
+            // Скругленные углы
+            using (GraphicsPath path = RoundedRectangle(dialogRect, ThemeManager.Scaled(20)))
+            {
+                // Градиентный фон
+                using (LinearGradientBrush panelBrush = new LinearGradientBrush(
+                    dialogRect,
+                    Color.FromArgb(240, 40, 40, 60),
+                    Color.FromArgb(240, 60, 60, 80),
+                    LinearGradientMode.Vertical))
+                {
+                    g.FillPath(panelBrush, path);
+                }
+
+                // Неоновая обводка
+                using (Pen borderPen = new Pen(Color.FromArgb(200, ThemeManager.Colors.Accent), ThemeManager.Scaled(3)))
+                {
+                    g.DrawPath(borderPen, path);
+                }
+            }
+
+            // Заголовок
+            using (Font titleFont = ThemeManager.ScaledFont(new Font("Segoe UI", 22, FontStyle.Bold)))
+            {
+                SizeF titleSize = g.MeasureString(title, titleFont);
+                g.DrawString(title, titleFont,
+                    new SolidBrush(ThemeManager.Colors.Accent),
+                    bounds.Width / 2 - titleSize.Width / 2,
+                    bounds.Height / 2 - ThemeManager.Scaled(60));
+            }
+
+            // Сообщение
+            using (Font messageFont = ThemeManager.ScaledFont(new Font("Segoe UI", 14)))
+            {
+                SizeF messageSize = g.MeasureString(message, messageFont);
+                g.DrawString(message, messageFont,
+                    new SolidBrush(ThemeManager.Colors.Text),
+                    bounds.Width / 2 - messageSize.Width / 2,
+                    bounds.Height / 2 - ThemeManager.Scaled(20));
+            }
+
+            // Кнопки
+            using (Font buttonFont = ThemeManager.ScaledFont(new Font("Segoe UI", 14, FontStyle.Bold)))
+            {
+                // Кнопка Да
+                RectangleF yesButton = new RectangleF(
+                    bounds.Width / 2 - ThemeManager.Scaled(120),
+                    bounds.Height / 2 + ThemeManager.Scaled(30),
+                    ThemeManager.Scaled(100),
+                    ThemeManager.Scaled(40));
+
+                DrawCustomButton(g, yesButton, buttonYes, buttonFont, true);
+
+                // Кнопка Нет
+                RectangleF noButton = new RectangleF(
+                    bounds.Width / 2 + ThemeManager.Scaled(20),
+                    bounds.Height / 2 + ThemeManager.Scaled(30),
+                    ThemeManager.Scaled(100),
+                    ThemeManager.Scaled(40));
+
+                DrawCustomButton(g, noButton, buttonNo, buttonFont, false);
+            }
+        }
+
+        // НОВЫЙ МЕТОД: для кнопок в кастомном диалоге
+        private static void DrawCustomButton(Graphics g, RectangleF buttonRect, string text, Font font, bool isYes)
+        {
+            // Фон кнопки
+            using (GraphicsPath buttonPath = RoundedRectangle(buttonRect, ThemeManager.Scaled(8)))
+            {
+                Color buttonColor = isYes ? Color.FromArgb(200, 100, 255, 100) : Color.FromArgb(200, 255, 100, 100);
+
+                using (SolidBrush buttonBrush = new SolidBrush(buttonColor))
+                {
+                    g.FillPath(buttonBrush, buttonPath);
+                }
+
+                // Обводка
+                using (Pen borderPen = new Pen(ThemeManager.Colors.Accent, ThemeManager.Scaled(2)))
+                {
+                    g.DrawPath(borderPen, buttonPath);
+                }
+            }
+
+            // Текст кнопки
+            SizeF textSize = g.MeasureString(text, font);
+            g.DrawString(text, font,
+                new SolidBrush(Color.Black),
+                buttonRect.X + (buttonRect.Width - textSize.Width) / 2,
+                buttonRect.Y + (buttonRect.Height - textSize.Height) / 2);
+        }
+
+        // НОВЫЙ МЕТОД: окно справки
+        public static void DrawHelpDialog(Graphics g, Rectangle bounds)
+        {
+            // Затемнение
+            using (Brush darkenBrush = new SolidBrush(Color.FromArgb(180, 0, 0, 0)))
+            {
+                g.FillRectangle(darkenBrush, bounds);
+            }
+
+            // Панель справки (больше по размеру)
+            RectangleF helpRect = new RectangleF(
+                bounds.Width / 2 - ThemeManager.Scaled(300),
+                bounds.Height / 2 - ThemeManager.Scaled(200),
+                ThemeManager.Scaled(600),
+                ThemeManager.Scaled(400));
+
+            // Скругленные углы
+            using (GraphicsPath path = RoundedRectangle(helpRect, ThemeManager.Scaled(20)))
+            {
+                // Градиентный фон
+                using (LinearGradientBrush panelBrush = new LinearGradientBrush(
+                    helpRect,
+                    Color.FromArgb(240, 40, 40, 60),
+                    Color.FromArgb(240, 60, 60, 80),
+                    LinearGradientMode.Vertical))
+                {
+                    g.FillPath(panelBrush, path);
+                }
+
+                // Неоновая обводка
+                using (Pen borderPen = new Pen(Color.FromArgb(200, ThemeManager.Colors.Accent), ThemeManager.Scaled(3)))
+                {
+                    g.DrawPath(borderPen, path);
+                }
+            }
+
+            // Заголовок
+            using (Font titleFont = ThemeManager.ScaledFont(new Font("Segoe UI", 28, FontStyle.Bold)))
+            {
+                string title = "УПРАВЛЕНИЕ";
+                SizeF titleSize = g.MeasureString(title, titleFont);
+
+                // Тень
+                g.DrawString(title, titleFont,
+                    new SolidBrush(Color.FromArgb(100, 0, 0, 0)),
+                    bounds.Width / 2 - titleSize.Width / 2 + ThemeManager.Scaled(3),
+                    bounds.Height / 2 - ThemeManager.Scaled(170) + ThemeManager.Scaled(3));
+
+                // Основной текст
+                g.DrawString(title, titleFont,
+                    new SolidBrush(ThemeManager.Colors.Accent),
+                    bounds.Width / 2 - titleSize.Width / 2,
+                    bounds.Height / 2 - ThemeManager.Scaled(170));
+            }
+
+            // Список управления
+            string[,] controls = {
+                { "🎮", "ИГРОК 1 (ЛЕВАЯ РАКЕТКА)", "W / S" },
+                { "⏸", "ПАУЗА / ПРОДОЛЖИТЬ", "ESC ИЛИ P" },
+                { "🚀", "СТАРТ / НОВАЯ ИГРА", "ПРОБЕЛ" },
+                { "🔄", "РЕСТАРТ", "R" },
+                { "🏠", "ВЕРНУТЬСЯ В МЕНЮ", "M" },
+                { "❓", "ОТКРЫТЬ СПРАВКУ", "F1" }
+            };
+
+            using (Font textFont = ThemeManager.ScaledFont(new Font("Segoe UI", 14)))
+            using (Font keyFont = ThemeManager.ScaledFont(new Font("Segoe UI", 12, FontStyle.Bold)))
+            {
+                float startY = bounds.Height / 2 - ThemeManager.Scaled(120);
+
+                for (int i = 0; i < controls.GetLength(0); i++)
+                {
+                    float y = startY + i * ThemeManager.Scaled(40);
+
+                    // Иконка
+                    g.DrawString(controls[i, 0], textFont,
+                        new SolidBrush(ThemeManager.Colors.Accent),
+                        bounds.Width / 2 - ThemeManager.Scaled(280),
+                        y);
+
+                    // Описание
+                    g.DrawString(controls[i, 1], textFont,
+                        new SolidBrush(ThemeManager.Colors.Text),
+                        bounds.Width / 2 - ThemeManager.Scaled(240),
+                        y);
+
+                    // Клавиши (в рамке)
+                    SizeF keySize = g.MeasureString(controls[i, 2], keyFont);
+                    RectangleF keyRect = new RectangleF(
+                        bounds.Width / 2 + ThemeManager.Scaled(140),
+                        y,
+                        keySize.Width + ThemeManager.Scaled(20),
+                        keySize.Height + ThemeManager.Scaled(5));
+
+                    // Фон клавиш
+                    using (GraphicsPath keyPath = RoundedRectangle(keyRect, ThemeManager.Scaled(5)))
+                    {
+                        using (LinearGradientBrush keyBrush = new LinearGradientBrush(
+                            keyRect,
+                            Color.FromArgb(100, ThemeManager.Colors.Accent),
+                            Color.FromArgb(150, ThemeManager.Colors.Accent),
+                            LinearGradientMode.Vertical))
+                        {
+                            g.FillPath(keyBrush, keyPath);
+                        }
+
+                        using (Pen keyPen = new Pen(ThemeManager.Colors.Accent, 1))
+                        {
+                            g.DrawPath(keyPen, keyPath);
+                        }
+                    }
+
+                    // Текст клавиш
+                    g.DrawString(controls[i, 2], keyFont,
+                        new SolidBrush(Color.White),
+                        keyRect.X + (keyRect.Width - keySize.Width) / 2,
+                        keyRect.Y + (keyRect.Height - keySize.Height) / 2);
+                }
+            }
+
+            // Кнопка закрытия
+            using (Font closeFont = ThemeManager.ScaledFont(new Font("Segoe UI", 12)))
+            {
+                string closeText = "НАЖМИТЕ ESC ДЛЯ ЗАКРЫТИЯ";
+                SizeF closeSize = g.MeasureString(closeText, closeFont);
+
+                g.DrawString(closeText, closeFont,
+                    new SolidBrush(Color.FromArgb(180, ThemeManager.Colors.Text)),
+                    bounds.Width / 2 - closeSize.Width / 2,
+                    bounds.Height / 2 + ThemeManager.Scaled(150));
+            }
+        }
+
         public static void DrawPaddle(Graphics g, Rectangle paddleRect, bool isPlayer1)
         {
             Color paddleColor = isPlayer1 ? ThemeManager.Colors.Player1 : ThemeManager.Colors.Player2;
