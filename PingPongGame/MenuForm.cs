@@ -4,6 +4,8 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Drawing2D;
 using System.Windows.Forms;
+using PingPongGame.Data;
+
 
 namespace PingPongGame
 {
@@ -578,21 +580,112 @@ namespace PingPongGame
                 BackColor = Color.Transparent
             };
 
-            Label label = new Label
+            // Заголовок
+            Label title = new Label
             {
-                Text = "Таблица лидеров\n\n(Функция в разработке)",
-                Font = ThemeManager.ScaledFont(new Font("Segoe UI", 20, FontStyle.Bold)),
+                Text = "ТАБЛИЦА ЛИДЕРОВ",
+                Font = ThemeManager.ScaledFont(new Font("Segoe UI", 18, FontStyle.Bold)),
                 ForeColor = ThemeManager.Colors.Accent,
-                Size = ThemeManager.ScaledSize(new Size(500, 200)),
-                Location = ThemeManager.ScaledPoint(new Point(30, 100)),
+                Size = ThemeManager.ScaledSize(new Size(520, 40)),
+                Location = ThemeManager.ScaledPoint(new Point(20, 10)),
                 TextAlign = ContentAlignment.MiddleCenter,
                 BackColor = Color.Transparent
             };
-            panel.Controls.Add(label);
-            _allControls.Add(label);
+            panel.Controls.Add(title);
+            _allControls.Add(title);
+
+            // Список результатов
+            ListView listView = new ListView
+            {
+                View = View.Details,
+                FullRowSelect = true,
+                GridLines = false,
+                HeaderStyle = ColumnHeaderStyle.Nonclickable,
+                Size = ThemeManager.ScaledSize(new Size(520, 360)),
+                Location = ThemeManager.ScaledPoint(new Point(20, 60)),
+                BackColor = Color.FromArgb(40, 40, 60),
+                ForeColor = ThemeManager.Colors.Text,
+            };
+
+            listView.Columns.Add("№", 40);
+            listView.Columns.Add("Игрок", 140);
+            listView.Columns.Add("Сложность", 90);
+            listView.Columns.Add("Счёт", 70);
+            listView.Columns.Add("Время", 80);
+            listView.Columns.Add("Дата", 90);
+
+            panel.Controls.Add(listView);
+            _allControls.Add(listView);
+
+            // Загружаем данные из БД
+            // Загружаем данные из БД
+            try
+            {
+                var scores = Database.GetTopScores(10);
+                int place = 1;
+
+                foreach (var s in scores)
+                {
+                    // сложность
+                    string diffText;
+                    switch (s.Difficulty)
+                    {
+                        case AIDifficulty.Easy:
+                            diffText = "Лёгкий";
+                            break;
+                        case AIDifficulty.Hard:
+                            diffText = "Сложный";
+                            break;
+                        default:
+                            diffText = "Нормальный";
+                            break;
+                    }
+
+                    // победа/поражение определяем по счёту
+                    bool isWin = s.PlayerScore > s.OpponentScore;
+                    string resultText = isWin ? "Победа" : "Поражение";
+
+                    string scoreText = $"{s.PlayerScore}:{s.OpponentScore}";
+
+                    TimeSpan t = TimeSpan.FromSeconds(s.DurationSeconds);
+                    string timeText = $"{(int)t.TotalMinutes:00}:{t.Seconds:00}";
+                    string dateText = s.PlayedAt.ToString("dd.MM.yyyy");
+
+                    var item = new ListViewItem(place.ToString());
+                    item.SubItems.Add(s.PlayerName);
+                    item.SubItems.Add(diffText);
+                    item.SubItems.Add(scoreText);
+                    item.SubItems.Add(resultText);
+                    item.SubItems.Add(timeText);
+                    item.SubItems.Add(dateText);
+
+                    listView.Items.Add(item);
+                    place++;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                string msg = ex.Message;
+
+                if (ex is TypeInitializationException tie && tie.InnerException != null)
+                {
+                    msg += "\n\nВнутренняя ошибка:\n" + tie.InnerException.Message;
+                }
+
+                MessageBox.Show(
+                    "Ошибка загрузки таблицы лидеров:\n" + msg,
+                    "Ошибка БД",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Error);
+            }
+
+
+
 
             return panel;
         }
+
 
         private Panel CreateAboutContent()
         {
@@ -647,17 +740,25 @@ namespace PingPongGame
 
         private void UpdateControlColors(Control control)
         {
-            if (control is Label label)
+            // ----- Label -----
+            var label = control as Label;
+            if (label != null)
             {
-                if (label.Text == "PING PONG" || label.Text == "МЕНЮ" ||
-                    label.Text.Contains("ТАБЛИЦА") || label.Text.Contains("Настройки") ||
-                    label.Text.Contains("Цветовая") || label.Text.Contains("Сложность") ||
-                    label.Text.Contains("Ваш никнейм") || label.Text.Contains("Версия") ||
-                    label.Text.Contains("PING PONG GAME"))
+                string text = label.Text ?? string.Empty;
+
+                if (text == "PING PONG" ||
+                    text == "МЕНЮ" ||
+                    text.Contains("ТАБЛИЦА") ||
+                    text.Contains("Настройки") ||
+                    text.Contains("Цветовая") ||
+                    text.Contains("Сложность") ||
+                    text.Contains("Ваш никнейм") ||
+                    text.Contains("Версия") ||
+                    text.Contains("PING PONG GAME"))
                 {
                     label.ForeColor = ThemeManager.Colors.Accent;
                 }
-                else if (label.Text.Contains("Фоновая") || label.Text.Contains("Звуковые"))
+                else if (text.Contains("Фоновая") || text.Contains("Звуковые"))
                 {
                     label.ForeColor = ThemeManager.Colors.Text;
                 }
@@ -666,10 +767,15 @@ namespace PingPongGame
                     label.ForeColor = ThemeManager.Colors.Text;
                 }
             }
-            else if (control is Button button)
+            // ----- Button -----
+            else if (control is Button)
             {
-                if (button.Text == "✕" || button.Text == "🎮 НАЧАТЬ ИГРУ" ||
-                    button.Text == "ПРИМЕНИТЬ ТЕМУ" || button == _currentButton)
+                var button = (Button)control;
+
+                if (button.Text == "✕" ||
+                    button.Text == "🎮 НАЧАТЬ ИГРУ" ||
+                    button.Text == "ПРИМЕНИТЬ ТЕМУ" ||
+                    button == _currentButton)
                 {
                     button.BackColor = ThemeManager.Colors.Accent;
                     button.ForeColor = Color.Black;
@@ -679,32 +785,41 @@ namespace PingPongGame
                     button.BackColor = Color.FromArgb(60, 60, 80);
                     button.ForeColor = ThemeManager.Colors.Text;
                 }
+
                 button.FlatAppearance.MouseOverBackColor = ThemeManager.Colors.Accent;
             }
-            else if (control is TextBox textBox)
+            // ----- TextBox -----
+            else if (control is TextBox)
             {
+                var textBox = (TextBox)control;
                 textBox.BackColor = Color.FromArgb(60, 60, 80);
                 textBox.ForeColor = ThemeManager.Colors.Text;
             }
-            else if (control is ComboBox comboBox)
+            // ----- ComboBox -----
+            else if (control is ComboBox)
             {
+                var comboBox = (ComboBox)control;
                 comboBox.BackColor = Color.FromArgb(60, 60, 80);
                 comboBox.ForeColor = ThemeManager.Colors.Text;
             }
-            else if (control is Panel panel)
+            // ----- Panel -----
+            else if (control is Panel)
             {
+                var panel = (Panel)control;
                 if (panel.Name != "menuPanel" && panel.Name != "contentPanel")
                 {
                     panel.BackColor = Color.FromArgb(60, 60, 80);
                 }
             }
 
-            // Рекурсивно обновляем дочерние контролы
+            // рекурсивно для всех дочерних контролов
             foreach (Control child in control.Controls)
             {
                 UpdateControlColors(child);
             }
         }
+
+
 
         private void MenuForm_Paint(object sender, PaintEventArgs e)
         {

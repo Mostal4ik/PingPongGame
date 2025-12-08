@@ -5,6 +5,8 @@ using System.Drawing;
 using System.Windows.Forms;
 using PingPongGame.GameLogic;
 using PingPongGame.GameUI;
+using PingPongGame.Data; 
+
 
 namespace PingPongGame
 {
@@ -35,6 +37,10 @@ namespace PingPongGame
         private Label _lblScore;
         private Label _lblGameTime;
         private Label _lblHelp;
+
+        private DateTime _gameStartTime;
+        private bool _scoreSaved;
+
 
         public Form1(string playerName, AIDifficulty difficulty)
         {
@@ -269,6 +275,8 @@ namespace PingPongGame
         {
             CreateEngine();
             _engine.StartRound();
+            _gameStartTime = DateTime.Now;
+            _scoreSaved = false;
             UIManager.StartGameTimer();
             _stopwatch.Start();
             _timer.Start();
@@ -319,6 +327,40 @@ namespace PingPongGame
 
             _engine.Update(dt);
 
+            // --- СОХРАНЕНИЕ РЕЗУЛЬТАТА В БД ПРИ GAME OVER ---
+            if (_engine.State == GameState.GameOver && !_scoreSaved)
+            {
+                _scoreSaved = true;
+
+                bool isWin = _engine.ScoreLeft > _engine.ScoreRight; // Игрок = левая ракетка
+                int playerScore = _engine.ScoreLeft;
+                int opponentScore = _engine.ScoreRight;
+                int durationSec = (int)(DateTime.Now - _gameStartTime).TotalSeconds;
+
+                try
+                {
+                    Database.SaveScore(new Database.ScoreRecord
+                    {
+                        PlayerName = _playerName,
+                        Difficulty = _currentDifficulty,
+                        PlayerScore = playerScore,
+                        OpponentScore = opponentScore,
+                        DurationSeconds = durationSec,
+                        IsWin = isWin,
+                        PlayedAt = DateTime.Now
+                    });
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show(
+                        "Ошибка сохранения результата в БД:\n" + ex.Message,
+                        "БД",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Error);
+                }
+            }
+            // -------------------------------------------------
+
             // Проверяем звуки ПОСЛЕ обновления игры
             CheckSounds(ballXBefore, ballYBefore);
 
@@ -327,6 +369,8 @@ namespace PingPongGame
 
             _gamePanel.Invalidate();
         }
+
+
 
         private void CheckSounds(float ballXBefore, float ballYBefore)
         {
@@ -513,6 +557,8 @@ namespace PingPongGame
                     UIManager.StartGameTimer();
                     _lastScoreLeft = 0;
                     _lastScoreRight = 0;
+                    _gameStartTime = DateTime.Now;
+                    _scoreSaved = false;
                 }
                 else if (_engine.State == GameState.GameOver)
                 {
@@ -521,8 +567,11 @@ namespace PingPongGame
                     UIManager.StartGameTimer();
                     _lastScoreLeft = 0;
                     _lastScoreRight = 0;
+                    _gameStartTime = DateTime.Now;
+                    _scoreSaved = false;
                 }
             }
+
 
             // Рестарт
             if (e.KeyCode == Keys.R && MessageBox.Show("Начать новую игру?", "Рестарт",
@@ -533,7 +582,10 @@ namespace PingPongGame
                 UIManager.StartGameTimer();
                 _lastScoreLeft = 0;
                 _lastScoreRight = 0;
+                _gameStartTime = DateTime.Now;
+                _scoreSaved = false;
             }
+
 
             // Меню
             if (e.KeyCode == Keys.M && MessageBox.Show("Вернуться в меню?", "Меню",

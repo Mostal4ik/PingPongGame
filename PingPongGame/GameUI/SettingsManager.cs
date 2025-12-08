@@ -1,10 +1,14 @@
 ﻿using PingPongGame.GameLogic;
 using System;
 using System.Collections.Generic;
+using System.Data.SQLite;
 using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Xml.Serialization;
+using static PingPongGame.Data.Database;
+using PingPongGame.Data;
+
 
 namespace PingPongGame
 {
@@ -71,25 +75,35 @@ namespace PingPongGame
             return new GameSettingsData();
         }
 
-        public static void SaveScore(ScoreEntry score)
+        public static void SaveScore(ScoreRecord score)
         {
-            try
+            using (var connection = new SQLiteConnection(ConnectionString))
             {
-                List<ScoreEntry> scores = LoadScores();
-                scores.Add(score);
-                scores = scores.OrderByDescending(s => s.Score)
-                             .ThenByDescending(s => s.Date)
-                             .Take(10)
-                             .ToList();
+                connection.Open();
 
-                XmlSerializer serializer = new XmlSerializer(typeof(List<ScoreEntry>));
-                using (StreamWriter writer = new StreamWriter(ScoresPath))
+                string sql = @"
+            INSERT INTO scores
+                (PlayerName, Difficulty, PlayerScore, OpponentScore,
+                 DurationSeconds, IsWin, PlayedAt)
+            VALUES
+                (@PlayerName, @Difficulty, @PlayerScore, @OpponentScore,
+                 @DurationSeconds, @IsWin, @PlayedAt);";
+
+                using (var cmd = new SQLiteCommand(sql, connection))
                 {
-                    serializer.Serialize(writer, scores);
+                    cmd.Parameters.AddWithValue("@PlayerName", score.PlayerName);
+                    cmd.Parameters.AddWithValue("@Difficulty", (int)score.Difficulty);
+                    cmd.Parameters.AddWithValue("@PlayerScore", score.PlayerScore);
+                    cmd.Parameters.AddWithValue("@OpponentScore", score.OpponentScore);
+                    cmd.Parameters.AddWithValue("@DurationSeconds", score.DurationSeconds);
+                    cmd.Parameters.AddWithValue("@IsWin", score.IsWin ? 1 : 0);
+                    cmd.Parameters.AddWithValue("@PlayedAt", score.PlayedAt);
+
+                    cmd.ExecuteNonQuery();
                 }
             }
-            catch { }
         }
+
 
         public static List<ScoreEntry> LoadScores()
         {
